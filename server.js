@@ -3,16 +3,14 @@ const express = require("express");
 const OpenAI = require("openai");
 
 const app = express();
-
-// Basic middleware
 app.use(express.json());
 
-// Health check route
+// Health check
 app.get("/", (req, res) => {
   res.send("Slang API is running.");
 });
 
-// Validate API key first
+// check API key
 if (!process.env.GROQ_API_KEY) {
   console.warn("Missing GROQ_API_KEY environment variable.");
 }
@@ -23,7 +21,7 @@ const client = new OpenAI({
   baseURL: "https://api.groq.com/openai/v1"
 });
 
-// Translate route
+// translate
 app.get("/translate", async (req, res) => {
   try {
     const text = req.query.text;
@@ -38,21 +36,44 @@ app.get("/translate", async (req, res) => {
 
     const response = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      temperature: 1,
+      temperature: 1.2,
+      top_p: 0.95,
       max_tokens: 60,
       messages: [
         {
           role: "system",
           content: `
-You translate Indonesian into aggressive English street slang.
+YOU ARE AN EXTREME STREET SLANG TRANSLATOR.
 
-Rules:
-- One sentence only
-- Keep meaning same
-- No short forms like u, r, 4, 2
-- Not too long
-- No explanation
-- Natural street tone
+RULES (STRICT):
+- Convert Indonesian → aggressive English street slang
+- NEVER use formal English
+- MUST sound like hood / gangster speech
+- KEEP SAME MEANING
+- MAX 1 SHORT sentence only
+- NO explanations
+- NO polite tone
+- NO grammar perfection
+
+FORBIDDEN:
+- formal English
+- textbook sentences
+
+EXAMPLES:
+
+"lu ngapain disini"
+→ "yo what the hell you doin here"
+
+"gua mau pergi"
+→ "I’m outta here right now"
+
+"jangan ganggu aku"
+→ "don’t fuck with me"
+
+"kalian pergi saja"
+→ "y’all just bounce outta here"
+
+NOW TRANSLATE:
 `
         },
         {
@@ -62,14 +83,7 @@ Rules:
       ]
     });
 
-    const output =
-      response &&
-      response.choices &&
-      response.choices[0] &&
-      response.choices[0].message &&
-      response.choices[0].message.content
-        ? response.choices[0].message.content.trim()
-        : null;
+    const output = response?.choices?.[0]?.message?.content?.trim();
 
     if (!output) {
       return res.status(500).send("error: empty response");
@@ -77,15 +91,14 @@ Rules:
 
     res.send(output);
 
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).send("error: api failed");
   }
 });
 
-// Render port
+// start server
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
